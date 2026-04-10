@@ -38,6 +38,14 @@ config :todo_api, :valkey,
   password: valkey_password,
   database: valkey_database
 
+cors_allowed_origins =
+  System.get_env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+
+config :todo_api, :cors_allowed_origins, cors_allowed_origins
+
 config :todo_api, TodoApiWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 

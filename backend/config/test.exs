@@ -9,6 +9,7 @@ config :todo_api, TodoApiWeb.Endpoint,
 
 config :todo_api, :start_external_clients, false
 config :todo_api, :ensure_mongo_indexes, false
+config :todo_api, :cors_allowed_origins, ["*"]
 
 config :todo_api, :todos,
   repository: TodoApi.Todos.Repositories.InMemoryRepository,

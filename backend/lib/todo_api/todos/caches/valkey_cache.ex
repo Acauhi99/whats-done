@@ -56,12 +56,14 @@ defmodule TodoApi.Todos.Caches.ValkeyCache do
 
   defp serialize_page(%{items: items, page: page, page_size: page_size, total: total}) do
     %{
-      "items" => Enum.map(items, &serialize_item/1),
+      "items" => Enum.map(items, &json_safe/1),
       "page" => page,
       "page_size" => page_size,
       "total" => total
     }
   end
+
+  defp serialize_page(value), do: json_safe(value)
 
   defp serialize_item(%Todo{} = todo) do
     %{
@@ -78,6 +80,28 @@ defmodule TodoApi.Todos.Caches.ValkeyCache do
   end
 
   defp serialize_item(item) when is_map(item), do: item
+
+  defp json_safe(%Todo{} = todo), do: serialize_item(todo)
+  defp json_safe(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+
+  defp json_safe(struct) when is_struct(struct) do
+    struct
+    |> Map.from_struct()
+    |> json_safe()
+  end
+
+  defp json_safe(map) when is_map(map) do
+    map
+    |> Enum.map(fn {key, value} -> {normalize_key(key), json_safe(value)} end)
+    |> Map.new()
+  end
+
+  defp json_safe(list) when is_list(list), do: Enum.map(list, &json_safe/1)
+  defp json_safe(atom) when is_atom(atom), do: Atom.to_string(atom)
+  defp json_safe(value), do: value
+
+  defp normalize_key(key) when is_atom(key), do: Atom.to_string(key)
+  defp normalize_key(key), do: key
 
   defp normalize_page(%{
          "items" => items,
@@ -101,14 +125,7 @@ defmodule TodoApi.Todos.Caches.ValkeyCache do
   defp serialize_datetime(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
 
   defp scan_and_delete(cursor) do
-    case Redix.command(TodoApi.Valkey, [
-           "SCAN",
-           cursor,
-           "MATCH",
-           "#{@prefix}*",
-           "COUNT",
-           @scan_count
-         ]) do
+    case Redix.command(TodoApi.Valkey, ["SCAN", cursor, "MATCH", "#{@prefix}*", "COUNT", @scan_count]) do
       {:ok, [next_cursor, keys]} when is_list(keys) ->
         :ok = delete_keys(keys)
 

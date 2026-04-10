@@ -36,6 +36,13 @@ defmodule TodoApiWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  plug CORSPlug,
+    origin: Application.compile_env(:todo_api, :cors_allowed_origins, ["http://localhost:5173"]),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    headers: ["authorization", "content-type", "accept", "origin"],
+    expose: ["location"],
+    max_age: 86_400
+
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],

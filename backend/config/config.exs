@@ -27,6 +27,11 @@ config :todo_api, :valkey,
   password: nil,
   database: 0
 
+config :todo_api, :cors_allowed_origins, [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+]
+
 # Configure the endpoint
 config :todo_api, TodoApiWeb.Endpoint,
   url: [host: "localhost"],
