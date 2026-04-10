@@ -1,9 +1,31 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - todo_network
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: todo-api
+    restart: unless-stopped
+    init: true
     working_dir: /app/backend
     environment:
       MIX_ENV: dev
@@ -15,7 +37,7 @@ services:
       VALKEY_PORT: "6379"
       VALKEY_PASSWORD: ${VALKEY_PASSWORD:-valkey-local-pass}
       VALKEY_DATABASE: "0"
-    command: sh -c "mix deps.get && mix phx.server"
+    command: sh -c "mix phx.server"
     volumes:
       - ./backend:/app/backend
       - mix_deps:/app/backend/deps
@@ -28,7 +50,7 @@ services:
       valkey:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/health | grep -q 'ok'"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/health | grep -q 'ok'"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -38,7 +60,7 @@ services:
 
   mongodb:
     image: mongo:8.2.6
-    container_name: todo-mongodb
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
@@ -54,7 +76,7 @@ services:
 
   valkey:
     image: valkey/valkey:9.0.3-alpine
-    container_name: todo-valkey
+    restart: unless-stopped
     command:
       - valkey-server
       - --appendonly
