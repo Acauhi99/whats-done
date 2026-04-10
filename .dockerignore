@@ -1,0 +1,9 @@
+.git
+.gitignore
+.vscode
+frontend/node_modules
+backend/_build
+backend/deps
+backend/cover
+backend/.elixir_ls
+backend/tmp

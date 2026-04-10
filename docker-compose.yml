@@ -1,0 +1,85 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo-api
+    working_dir: /app/backend
+    environment:
+      MIX_ENV: dev
+      PHX_SERVER: "true"
+      PORT: "4000"
+      MONGO_URL: mongodb://mongodb:27017/todo_api_dev
+      MONGO_POOL_SIZE: "10"
+      VALKEY_HOST: valkey
+      VALKEY_PORT: "6379"
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-valkey-local-pass}
+      VALKEY_DATABASE: "0"
+    command: sh -c "mix deps.get && mix phx.server"
+    volumes:
+      - ./backend:/app/backend
+      - mix_deps:/app/backend/deps
+      - mix_build:/app/backend/_build
+    ports:
+      - "4000:4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/health | grep -q 'ok'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - todo_network
+
+  mongodb:
+    image: mongo:8.2.6
+    container_name: todo-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet mongodb://localhost:27017/test --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    networks:
+      - todo_network
+
+  valkey:
+    image: valkey/valkey:9.0.3-alpine
+    container_name: todo-valkey
+    command:
+      - valkey-server
+      - --appendonly
+      - yes
+      - --requirepass
+      - ${VALKEY_PASSWORD:-valkey-local-pass}
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD:-valkey-local-pass}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 10s
+    networks:
+      - todo_network
+
+volumes:
+  mix_deps:
+  mix_build:
+  mongodb_data:
+  valkey_data:
+
+networks:
+  todo_network:
+    driver: bridge
